@@ -1,8 +1,8 @@
-from flask import Flask, url_for
+from flask import Flask, request, url_for
 from markupsafe import escape
 
 app = Flask(__name__)
-app.json.ensure_ascii = False 
+app.json.ensure_ascii = False
 
 STUDENTS = {
     "23T1020001": {"name": "Nguyễn Văn An", "lop": "K47A",
@@ -18,6 +18,7 @@ STUDENTS = {
     "23T1020006": {"name": "Võ Quốc Khánh", "lop": "K47C",
                    "scores": {"PMMNM": 7.5, "MMT": 8.0}},
 }
+
 
 def average(scores):
     """Trung bình cộng, làm tròn 2 chữ số; dict rỗng -> None."""
@@ -45,10 +46,12 @@ def student_summary(mssv):
         "mssv": mssv,
         "name": s["name"],
         "lop": s["lop"],
-        "scores": s["scores"],
+        "scores": dict(s["scores"]),
         "average": avg,
         "rank": rank(avg),
     }
+
+
 def layout(title, body):
     menu = (
         f'<a href="{url_for("index")}">Trang chủ</a> · '
@@ -68,6 +71,7 @@ def layout(title, body):
 </body>
 </html>"""
 
+
 @app.route("/")
 def index():
     lops = {s["lop"] for s in STUDENTS.values()}
@@ -83,7 +87,49 @@ def index():
 
 @app.route("/students")
 def student_list():
-    return layout("Sinh viên", "<p>Đang làm</p>")
+    lop = request.args.get("lop", "").strip()
+
+    # Thanh lọc: lấy các lớp từ dữ liệu, không viết cứng
+    classes = sorted({s["lop"] for s in STUDENTS.values()})
+    bar = f'<a href="{url_for("student_list")}">Tất cả</a>'
+    for c in classes:
+        bar += f' | <a href="{url_for("student_list", lop=c)}">{escape(c)}</a>'
+
+    # Các dòng của bảng
+    rows = ""
+    for mssv in STUDENTS:
+        info = student_summary(mssv)
+        if lop and info["lop"].lower() != lop.lower():
+            continue
+        avg = "—" if info["average"] is None else info["average"]
+        rows += (
+            "<tr>"
+            f'<td><a href="{url_for("student_detail", mssv=mssv)}">{escape(mssv)}</a></td>'
+            f"<td>{escape(info['name'])}</td>"
+            f"<td>{escape(info['lop'])}</td>"
+            f"<td>{escape(avg)}</td>"
+            f"<td>{escape(info['rank'])}</td>"
+            "</tr>"
+        )
+
+    if rows:
+        table = (
+            '<table border="1" cellpadding="4">'
+            "<tr><th>MSSV</th><th>Họ tên</th><th>Lớp</th>"
+            "<th>Điểm TB</th><th>Xếp loại</th></tr>"
+            f"{rows}</table>"
+        )
+    else:
+        table = "<p>Không có sinh viên phù hợp.</p>"
+
+    body = f"<h1>Danh sách sinh viên</h1><p>Lọc theo lớp: {bar}</p>{table}"
+    return layout("Sinh viên", body)
+
+
+# ---- Route tạm, sẽ làm thật ở các câu sau ----
+@app.route("/students/<mssv>")
+def student_detail(mssv):
+    return layout("Chi tiết", "<p>Đang làm</p>")
 
 
 @app.route("/search")
