@@ -178,7 +178,34 @@ def student_export(mssv):
 
 @app.route("/search")
 def search():
-    return layout("Tìm kiếm", "<p>Đang làm</p>")
+    q = request.args.get("q", "").strip()
+    form = (
+        f'<form method="get" action="{url_for("search")}">'
+        f'<input type="text" name="q" value="{escape(q)}">'
+        '<button type="submit">Tìm</button>'
+        "</form>"
+    )
+
+    result = ""
+    if q:
+        key = q.lower()
+        found = [
+            m for m, s in STUDENTS.items()
+            if key in s["name"].lower() or key in m.lower()
+        ]
+        items = ""
+        for m in found:
+            items += (
+                f'<li><a href="{url_for("student_detail", mssv=m)}">'
+                f'{escape(m)} - {escape(STUDENTS[m]["name"])}</a></li>'
+            )
+        result = (
+            f"<p>Tìm thấy {len(found)} kết quả cho “{escape(q)}”</p>"
+            f"<ul>{items}</ul>"
+        )
+
+    body = f"<h1>Tìm kiếm sinh viên</h1>{form}{result}"
+    return layout("Tìm kiếm", body)
 
 
 @app.route("/api/students")
