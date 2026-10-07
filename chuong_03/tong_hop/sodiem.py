@@ -70,7 +70,15 @@ def layout(title, body):
 
 @app.route("/")
 def index():
-    return layout("Trang chủ", "<p>Đang làm</p>")
+    lops = {s["lop"] for s in STUDENTS.values()}
+    body = (
+        "<h1>Sổ điểm lớp học</h1>"
+        f"<p>Tổng số sinh viên: {len(STUDENTS)}</p>"
+        f"<p>Số lớp: {len(lops)}</p>"
+        f'<p><a href="{url_for("student_list")}">Danh sách sinh viên</a> · '
+        f'<a href="{url_for("api_students")}">API JSON</a></p>'
+    )
+    return layout("Trang chủ", body)
 
 
 @app.route("/students")
@@ -81,3 +89,8 @@ def student_list():
 @app.route("/search")
 def search():
     return layout("Tìm kiếm", "<p>Đang làm</p>")
+
+
+@app.route("/api/students")
+def api_students():
+    return "Đang làm"
