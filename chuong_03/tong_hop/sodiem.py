@@ -291,3 +291,24 @@ def api_score(mssv, course):
         return "", 204
 
     return jsonify({"mssv": mssv, "course": course, "score": scores[course]})
+
+
+ERROR_TITLES = {
+    400: "Dữ liệu không hợp lệ",
+    404: "Không tìm thấy",
+    405: "Phương thức không được hỗ trợ",
+}
+
+
+@app.errorhandler(400)
+@app.errorhandler(404)
+@app.errorhandler(405)
+def handle_error(error):
+    title = ERROR_TITLES[error.code]
+    if request.path.startswith("/api/"):
+        return jsonify({"error": title, "detail": error.description}), error.code
+    body = (
+        f"<h1>Lỗi {error.code}: {escape(title)}</h1>"
+        f"<p>{escape(error.description)}</p>"
+    )
+    return layout(f"Lỗi {error.code}", body), error.code
