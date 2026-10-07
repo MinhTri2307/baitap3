@@ -1,4 +1,4 @@
-from flask import Flask, request, url_for
+from flask import Flask, abort, make_response, redirect, request, url_for
 from markupsafe import escape
 
 app = Flask(__name__)
@@ -21,7 +21,6 @@ STUDENTS = {
 
 
 def average(scores):
-    """Trung bình cộng, làm tròn 2 chữ số; dict rỗng -> None."""
     if not scores:
         return None
     return round(sum(scores.values()) / len(scores), 2)
@@ -89,13 +88,11 @@ def index():
 def student_list():
     lop = request.args.get("lop", "").strip()
 
-    # Thanh lọc: lấy các lớp từ dữ liệu, không viết cứng
     classes = sorted({s["lop"] for s in STUDENTS.values()})
     bar = f'<a href="{url_for("student_list")}">Tất cả</a>'
     for c in classes:
         bar += f' | <a href="{url_for("student_list", lop=c)}">{escape(c)}</a>'
 
-    # Các dòng của bảng
     rows = ""
     for mssv in STUDENTS:
         info = student_summary(mssv)
@@ -126,10 +123,57 @@ def student_list():
     return layout("Sinh viên", body)
 
 
-# ---- Route tạm, sẽ làm thật ở các câu sau ----
 @app.route("/students/<mssv>")
 def student_detail(mssv):
-    return layout("Chi tiết", "<p>Đang làm</p>")
+    if mssv not in STUDENTS:
+        abort(404, description=f"Không có sinh viên với MSSV = {mssv}.")
+    info = student_summary(mssv)
+    avg = "—" if info["average"] is None else info["average"]
+
+    if info["scores"]:
+        rows = ""
+        for course, score in info["scores"].items():
+            rows += f"<tr><td>{escape(course)}</td><td>{escape(score)}</td></tr>"
+        score_table = (
+            '<table border="1" cellpadding="4">'
+            "<tr><th>Học phần</th><th>Điểm</th></tr>"
+            f"{rows}</table>"
+        )
+    else:
+        score_table = "<p>Chưa có điểm học phần nào.</p>"
+
+    short = url_for("student_short", mssv=mssv)
+    body = (
+        f"<h1>{escape(info['name'])}</h1>"
+        f"<p>MSSV: {escape(mssv)}</p>"
+        f'<p>Lớp: <a href="{url_for("student_list", lop=info["lop"])}">'
+        f'{escape(info["lop"])}</a></p>'
+        f"<p>Điểm TB: {escape(avg)}</p>"
+        f"<p>Xếp loại: {escape(info['rank'])}</p>"
+        f"<h2>Bảng điểm</h2>{score_table}"
+        f'<p><a href="{url_for("student_export", mssv=mssv)}">'
+        "Tải bảng điểm (CSV)</a></p>"
+        f"<p>Link rút gọn: <code>{escape(short)}</code></p>"
+    )
+    return layout(info["name"], body)
+
+
+@app.route("/sv/<mssv>")
+def student_short(mssv):
+    return redirect(url_for("student_detail", mssv=mssv), code=301)
+
+
+@app.route("/students/<mssv>/export")
+def student_export(mssv):
+    if mssv not in STUDENTS:
+        abort(404, description=f"Không có sinh viên với MSSV = {mssv}.")
+    lines = ["hoc_phan,diem"]
+    for course, score in STUDENTS[mssv]["scores"].items():
+        lines.append(f"{course},{score}")
+    resp = make_response("\n".join(lines) + "\n")
+    resp.headers["Content-Type"] = "text/csv; charset=utf-8"
+    resp.headers["Content-Disposition"] = f"attachment; filename=diem_{mssv}.csv"
+    return resp
 
 
 @app.route("/search")
