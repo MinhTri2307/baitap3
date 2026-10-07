@@ -1,4 +1,5 @@
-from flask import Flask
+from flask import Flask, url_for
+from markupsafe import escape
 
 app = Flask(__name__)
 app.json.ensure_ascii = False 
@@ -48,3 +49,35 @@ def student_summary(mssv):
         "average": avg,
         "rank": rank(avg),
     }
+def layout(title, body):
+    menu = (
+        f'<a href="{url_for("index")}">Trang chủ</a> · '
+        f'<a href="{url_for("student_list")}">Sinh viên</a> · '
+        f'<a href="{url_for("search")}">Tìm kiếm</a>'
+    )
+    return f"""<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>{escape(title)} - Sổ điểm</title>
+</head>
+<body>
+<nav>{menu}</nav>
+<hr>
+{body}
+</body>
+</html>"""
+
+@app.route("/")
+def index():
+    return layout("Trang chủ", "<p>Đang làm</p>")
+
+
+@app.route("/students")
+def student_list():
+    return layout("Sinh viên", "<p>Đang làm</p>")
+
+
+@app.route("/search")
+def search():
+    return layout("Tìm kiếm", "<p>Đang làm</p>")
